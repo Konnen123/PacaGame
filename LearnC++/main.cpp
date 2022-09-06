@@ -10,6 +10,7 @@ int height = 2;
 fstream fUsername;
 fstream fTokens;
 
+
 class UserProfile
 {
     string name;
@@ -133,6 +134,7 @@ public:
 
 void FirstPage();
 void UserPage(string name);
+void Blackjack(UserProfile userProfile);
 
 void LineSpacing(int height)
 {
@@ -145,6 +147,26 @@ void Indent(int width,char c)
         cout << c;
 }
 
+int PlaceBet(UserProfile userProfile)
+{
+    int bet;
+    system("cls");
+    LineSpacing(height);
+    cout << "Place your bets(" << userProfile.GetTokens() << "):";
+    cin >> bet;
+    while (bet > userProfile.GetTokens() || bet <= 0)
+    {
+        system("cls");
+        LineSpacing(height);
+        cout << "You do not have enough tokens.Try again(" << userProfile.GetTokens() << "): ";
+        cin >> bet;
+    }
+
+
+    return bet;
+}
+
+//SlotMachine functions
 int SlotMachineRule(string line, int bet,string* symbols,int totalSymbols)
 {
     int prize=0;
@@ -158,24 +180,149 @@ int SlotMachineRule(string line, int bet,string* symbols,int totalSymbols)
         }
     }
 }
-int PlaceBet(UserProfile userProfile)
+
+
+
+//Blackjack functions
+void RemoveCardsFromDeck(string* deckCards, int* pNrOfCardsInADeck,int pivot)
 {
-    int bet;
-    system("cls");
-    LineSpacing(height);
-    cout << "Place your bets(" << userProfile.GetTokens() << "):";
-    cin >> bet;
-    while(bet>userProfile.GetTokens() || bet<0)
-        {
-            system("cls");
-            LineSpacing(height);
-            cout << "You do not have enough tokens.Try again(" << userProfile.GetTokens() << "): ";
-            cin >> bet;
-        }
-  
-   
-    return bet;
+    string aux = deckCards[*pNrOfCardsInADeck - 1];
+    string aux2;
+
+
+    for (int j = *pNrOfCardsInADeck - 1;j > pivot;j--)
+    {
+        aux2 = deckCards[j - 1];
+        deckCards[j - 1] = aux;
+        aux = aux2;
+    }
+    (*pNrOfCardsInADeck)--;
 }
+void GiveBlackjackCards(int* pNrOfCardsInADeck,string* deckCards,string* playerCards,int* pNrOfPlayerCards,int cardsGiven)
+{
+    int randomness=0;
+    for (int i = 0;i < 5;i++)
+    {
+        randomness += rand() + time(0);
+        srand(randomness);
+    }
+  
+
+    for (int i = 0;i < cardsGiven;i++)
+    {
+        int card = rand() % *pNrOfCardsInADeck;
+       
+        playerCards[i+(*pNrOfPlayerCards)] = deckCards[card];
+
+        //removing the cards from deck
+        RemoveCardsFromDeck(deckCards, pNrOfCardsInADeck, card);
+       
+    }
+    (*pNrOfPlayerCards)+=cardsGiven;
+}
+int SumOfCards(string* setOfCards,int nrOfCards)
+{
+    int sum=0;
+    int acesInDeck=0;
+    for (int i = 0;i < nrOfCards;i++)
+    {
+        if (setOfCards[i] == "J" || setOfCards[i] == "Q" || setOfCards[i] == "K")
+            sum += 10;
+        else if (setOfCards[i] == "A")
+            acesInDeck++;
+        else
+        {
+            sum += stoi(setOfCards[i]);
+        }
+    }
+    if (!acesInDeck)
+        return sum;
+    
+    for (int i = 0;i < acesInDeck;i++)
+    {
+        if (sum + 11 < 21)
+            sum += 11;
+        else if (sum + 11 == 21 && i == acesInDeck - 1)
+            sum += 11;
+        else sum += 1;
+    }
+    return sum;
+}
+void OptionAfterGame(UserProfile userProfile)
+{
+
+    int numberOption = 0;
+    LineSpacing(height);
+    cout << "Press 0 to exit to menu.\n";
+    cout << "Press 1 to place your bets.\n";
+
+    cin >> numberOption;
+    if (numberOption == 1)
+        Blackjack(userProfile);
+    else UserPage(userProfile.GetName());
+}
+void DisplayCards(int nrOfDealerCards, string* dealerCards, int nrOfPlayerCards, string* playerCards,bool revealSecondCard)
+{
+    system("cls");
+
+    LineSpacing(height + 2);
+
+    int dealerSum = SumOfCards(dealerCards, nrOfDealerCards);
+    int playerSum = SumOfCards(playerCards, nrOfPlayerCards);
+
+    Indent(width, ' ');
+    cout << "Dealer`s cards: ";
+    if (!revealSecondCard ) //This means we want to reveal the second card when it`s the dealer`s turn
+    {
+        cout << dealerCards[0] << ' ' << "?\n";
+    }
+    else
+    {
+        for (int i = 0;i < nrOfDealerCards;i++)
+            cout << dealerCards[i] << ' ';
+        cout << "(Total: " << dealerSum << ")\n";
+    }
+    
+
+    Indent(width + 4, ' ');
+    cout << "Your cards: ";
+    for (int i = 0;i < nrOfPlayerCards;i++)
+        cout << playerCards[i] << ' ';
+    cout << "(Total: " << playerSum << ")\n";
+
+    LineSpacing(height + 2);
+}
+
+void ComparingSums(int dealerSum, int playerSum, int bet, UserProfile userProfile)
+{
+    if (playerSum > 21)
+    {
+        cout << "Busted!";
+        userProfile.ModifyTokens(-bet);
+    }
+    else if (dealerSum > 21)
+    {
+        cout << "Dealer busted! You won " << bet << " tokens.";
+        userProfile.ModifyTokens(bet);
+    }
+    else if (dealerSum > playerSum)
+    {
+        cout << "Dealer won!";
+        userProfile.ModifyTokens(-bet);
+
+    }
+    else if (playerSum > dealerSum)
+    {
+        cout << "You won " << bet << " tokens.";
+        userProfile.ModifyTokens(bet);
+    }
+    else  cout << "Draw";
+
+
+    cout << '\n';
+    OptionAfterGame(userProfile);
+}
+
 
 void SlotMachine(UserProfile userProfile)
 {
@@ -247,7 +394,111 @@ void SlotMachine(UserProfile userProfile)
 }
 void Blackjack(UserProfile userProfile)
 {
+    int bet = PlaceBet(userProfile);
+   
+    LineSpacing(height + 2);
 
+    string cards[] = { "2","3","4","5","6","7","8","9","10","J","Q","K","A" };
+    int nrOfCardsInADeck = 52;
+   
+    int* pNrOfCardsInADeck = &nrOfCardsInADeck;
+   
+   string* deckCards = new string[nrOfCardsInADeck];
+
+    for (int i = 0;i < *pNrOfCardsInADeck;i++)
+        deckCards[i] = cards[i / 4];
+
+  
+    int maxCards = 11;
+
+  
+    int nrOfPlayerCards=0;
+    int* pNrOfPlayerCards = &nrOfPlayerCards;
+
+    string* playerCards = new string[maxCards];
+    //giving the player the cards 
+    GiveBlackjackCards(pNrOfCardsInADeck,deckCards,playerCards,pNrOfPlayerCards,2);
+
+    int nrOfDealerCards =0;
+    int* pNrOfDealerCards = &nrOfDealerCards;
+
+    string* dealerCards = new string[maxCards];
+    //giving the dealer the cards 
+    GiveBlackjackCards(pNrOfCardsInADeck, deckCards, dealerCards,pNrOfDealerCards,2);
+   
+    int dealerSum = SumOfCards(dealerCards, nrOfDealerCards);
+    int playerSum = SumOfCards(playerCards, nrOfPlayerCards);
+
+    DisplayCards(nrOfDealerCards, dealerCards, nrOfPlayerCards, playerCards,false);
+
+   
+
+    if (playerSum == 21 || dealerSum == 21)
+    {
+        if (playerSum == 21 && dealerSum != 21)
+        {
+            DisplayCards(nrOfDealerCards, dealerCards, nrOfPlayerCards, playerCards, true);
+            cout << "Blackjack! You won " << bet * 1.5f << " tokens.\n";
+            
+            userProfile.ModifyTokens(bet * 1.5f);
+        }
+        
+        else if (playerSum != 21 && dealerSum == 21)
+        {
+            DisplayCards(nrOfDealerCards, dealerCards, nrOfPlayerCards, playerCards, true);
+            cout << "Dealer has blackjack!\n";
+            
+            userProfile.ModifyTokens(-bet);
+        }
+
+        else if (playerSum == 21 && dealerSum == 21)
+        {
+            DisplayCards(nrOfDealerCards, dealerCards, nrOfPlayerCards, playerCards, true);
+            cout << "Draw.\n";
+        }
+        OptionAfterGame(userProfile);
+        return;
+    }
+    bool ok = true;
+    while (SumOfCards(playerCards, nrOfPlayerCards) <= 21 && ok)
+    {
+
+        cout << "Press 1 to take a card\n";
+        cout << "Press 2 to stop \n";
+        
+        int option = 0;
+       
+            cin >> option;
+
+            if (option == 1)
+            {
+                GiveBlackjackCards(pNrOfCardsInADeck, deckCards, playerCards, pNrOfPlayerCards, 1);
+                DisplayCards(nrOfDealerCards, dealerCards, nrOfPlayerCards, playerCards,false);
+            }
+            else
+            {
+                ok = false;
+                while (SumOfCards(dealerCards, nrOfDealerCards) < 17)
+                {
+                    GiveBlackjackCards(pNrOfCardsInADeck, deckCards, dealerCards, pNrOfDealerCards, 1);
+                    
+                   
+                }
+                
+                break;
+            }
+
+        
+    }
+
+    DisplayCards(nrOfDealerCards, dealerCards, nrOfPlayerCards, playerCards, true);
+    dealerSum = SumOfCards(dealerCards, nrOfDealerCards);
+    playerSum = SumOfCards(playerCards, nrOfPlayerCards);
+
+    ComparingSums(dealerSum,playerSum,bet,userProfile);
+
+    
+    
 }
 void Roulette(UserProfile userProfile)
 {
